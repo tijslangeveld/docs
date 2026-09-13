@@ -648,5 +648,22 @@ setTimeout(function () {
       <div class="made-body" id="made-body"></div>
     </div>
   </div>
+
+<!-- GoatCounter. Cookieless, and it counts the page, not the reader.
+
+     The path is PINNED to location.pathname, and that is not a nicety. A key
+     can arrive as ?TOKEN as well as #TOKEN — see boot() in viewer.js — and
+     GoatCounter's default path is pathname + search, so an unpinned counter
+     would send the decryption key of a private document to a third party. The
+     fragment is never sent by anything, and the referrer policy in the head is
+     no-referrer, so the URL leaks nowhere else either.
+
+     The settings must be defined BEFORE count.js: it is async and reads
+     window.goatcounter as it runs. -->
+<script>
+  window.goatcounter = { path: function () { return location.pathname; } };
+</script>
+<script data-goatcounter="https://tkterugblik.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
