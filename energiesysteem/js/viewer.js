@@ -40,6 +40,49 @@ async function openEntry(name) {
   return crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64(entry.iv) }, KEY, blob);
 }
 
+// What this bundle is called as far as a password manager is concerned.
+//
+// manifest.bundleId is random and unique per export, so each export is its own
+// saved credential instead of every bundle on the host sharing one. Bundles
+// made before this existed have no id; the path is the next best thing — still
+// unique per deployed directory, just not per re-export of the same one.
+function bundleName() {
+  const id = MANIFEST && MANIFEST.bundleId;
+  if (id) return 'doc-' + id;
+  const path = (location.pathname || '/').replace(/\/+$/, '');
+  return 'doc' + (path || '/');
+}
+
+function setGateUser() {
+  const el = $('gate-user');
+  if (el && !el.value) el.value = bundleName();
+}
+
+// Ask the browser to remember the key, where it will.
+//
+// Two routes, because neither covers everything. The Credential Management API
+// is explicit and reliable where it exists (Chromium); elsewhere the save
+// prompt is a heuristic on a submitted password form, which is why the gate is
+// a real <form> with a username field. Both are best-effort: a manager that
+// declines, or a browser without either, costs the reader a paste — never the
+// document.
+function saveKeyToBrowser(token) {
+  try {
+    const el = $('gate-user');
+    if (el) el.value = bundleName();
+    if (!window.PasswordCredential || !navigator.credentials || !navigator.credentials.store) return;
+    const cred = new window.PasswordCredential({
+      id: bundleName(),
+      password: token,
+      name: 'Sleutel voor dit document',
+    });
+    navigator.credentials.store(cred).catch(() => { /* declined, or not allowed here */ });
+  } catch (_) {
+    // Non-secure origin, unsupported constructor, a manager that refuses —
+    // none of it is worth interrupting a reader who is already inside.
+  }
+}
+
 async function unlock(token) {
   const msg = $('gate-msg');
   const btn = $('gate-go');
@@ -52,11 +95,14 @@ async function unlock(token) {
       if (!r.ok) throw new Error('manifest ontbreekt (HTTP ' + r.status + ')');
       MANIFEST = await r.json();
     }
+    setGateUser();
     KEY = await deriveKey(token, MANIFEST.kdf);
     // The analysis doubles as the key check: AES-GCM authenticates, so a wrong
     // token throws here rather than yielding garbage.
     const plain = await openEntry('analysis');
     render(JSON.parse(new TextDecoder().decode(plain)));
+    // Only now — a key that did not open the document is not worth saving.
+    saveKeyToBrowser(token);
   } catch (err) {
     KEY = null;
     btn.disabled = false;
@@ -76,10 +122,25 @@ function boot() {
   const fromHash = decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
   const fromQuery = decodeURIComponent((location.search || '').replace(/^\?/, '')).trim();
   const token = fromHash || fromQuery;
-  $('gate-go').addEventListener('click', () => unlock($('gate-key').value.trim()));
-  $('gate-key').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') unlock($('gate-key').value.trim());
-  });
+  // Submit, not click: a password manager only offers to save on a form
+  // submission, and Enter in the field submits the form on its own. The default
+  // is prevented — there is nowhere to post to, everything happens here.
+  const form = $('gate-form');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      unlock($('gate-key').value.trim());
+    });
+  } else {
+    // A bundle whose index.html predates the form still has to open.
+    $('gate-go').addEventListener('click', () => unlock($('gate-key').value.trim()));
+    $('gate-key').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') unlock($('gate-key').value.trim());
+    });
+  }
+  // Filled before the manifest is fetched so the field is never blank while a
+  // manager looks at it; unlock() sets it again once the real id is known.
+  setGateUser();
   // Changing only the fragment is a same-document navigation, so pasting a new
   // token into the address bar would otherwise do nothing.
   window.addEventListener('hashchange', () => {
@@ -554,11 +615,42 @@ function render(data) {
     openPagePopup(parseInt(cite.getAttribute('data-page'), 10) || 1, pages);
   });
 
+  renderSignature(data.sign);
+
   $('doc-foot').textContent = isTk
     ? 'Klik op een verwijzing om het bijbehorende Kamerstuk op tweedekamer.nl te openen.'
     : hasPdf
       ? 'Klik op een paginaverwijzing om die pagina uit het originele PDF-document te bekijken.'
       : 'Het originele PDF-document is niet meegeleverd; paginaverwijzingen zijn niet aanklikbaar.';
+}
+
+// The signature at the very end, when the bundle carries one (--signed).
+//
+// The address is never in the page. It arrives as two halves and is joined in
+// the click handler, so no attribute, no text node and no href ever holds it —
+// there is nothing for a harvester to read, and reading is what they do. The
+// trade is that Contact cannot be middle-clicked or copied as a link; a button
+// is honest about that, and it is what keeps the address off the page.
+function renderSignature(sign) {
+  const el = $('doc-sign');
+  if (!el) return;
+  if (!sign || !sign.holder || !sign.user || !sign.host) { el.hidden = true; return; }
+
+  const label = sign.label || 'Contact';
+  el.textContent = '© ' + sign.holder + (sign.year ? ', ' + sign.year : '') + '. ';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'sign-contact';
+  btn.textContent = label;
+  btn.addEventListener('click', () => {
+    // Built here and nowhere else. String.fromCharCode(64) is the '@': even the
+    // two halves never sit either side of one in the source.
+    const to = sign.user + String.fromCharCode(64) + sign.host;
+    location.href = 'mail' + 'to:' + to;
+  });
+  el.appendChild(btn);
+  el.appendChild(document.createTextNode('.'));
+  el.hidden = false;
 }
 
 // [N] references in a TK analysis point at a numbered source list at the end of
