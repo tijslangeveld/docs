@@ -253,7 +253,10 @@ function wrapLevel(html, tag, below) {
     const inner = below.length ? wrapLevel(sec.content, below[0], below.slice(1)) : sec.content;
     // The level rides on the element: each has to read as smaller than the one
     // holding it, and CSS cannot count nesting depth by itself.
-    return '<details class="pdf-section pdf-section-' + tag + '">' +
+    // Open: every level below the top starts unfolded. The fold that earns
+    // its keep is the one over a whole DEEL; unfolding each sub-heading in
+    // turn to read a section is work, not navigation.
+    return '<details class="pdf-section pdf-section-' + tag + '" open>' +
       '<summary class="pdf-section-summary">' + sec.heading + '</summary>' +
       '<div class="pdf-section-body">' + inner + '</div></details>';
   }).join('');
@@ -321,8 +324,14 @@ function wireCollapseAll(container) {
   btn.addEventListener('click', () => {
     const secs = container.querySelectorAll('details.pdf-section');
     if (!secs.length) return;
-    let anyOpen = false;
-    secs.forEach((s) => { if (s.open) anyOpen = true; });
+    // Which way the button goes is decided by the TOP-LEVEL sections alone.
+    // The levels below them start open, so asking "is anything open at all"
+    // would answer yes on a freshly loaded page, and the first press of a
+    // button labelled "Alles uitklappen" would fold the article instead.
+    const tops = [...secs].filter(
+      (s) => !s.parentElement || !s.parentElement.closest('details.pdf-section'));
+    const anyOpen = (tops.length ? tops : [...secs]).some((s) => s.open);
+    // Acting, though, is on all of them: "alles" means all.
     secs.forEach((s) => { s.open = !anyOpen; });
     const expand = anyOpen; // we just collapsed them, so next action is expand
     const lbl = btn.querySelector('span');
