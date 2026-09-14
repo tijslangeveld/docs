@@ -115,6 +115,39 @@ async function unlock(token) {
   }
 }
 
+// ── GoatCounter ─────────────────────────────────────────────────────────────
+// Loaded from here rather than from a <script> in the page, and only after the
+// address bar has been cleaned. count.js sends `q: location.search` as a field
+// of its own — whatever the path callback returns — so a key that arrived as
+// ?TOKEN would be posted to a third party verbatim by a counter that loaded
+// first. With the query already gone there is nothing to send.
+//
+// The path is pinned on top of that, belt and braces, and https is spelled out:
+// the protocol-relative form in GoatCounter's own snippet resolves to
+// file://gc.zgo.at/count.js when a bundle is opened straight off disk.
+//
+// count.js declines to count on file://, on localhost and on private ranges,
+// and says so in the console ("goatcounter: not counting because of: …"). That
+// is by design and not something to work around — it is also the first place to
+// look when a deployed bundle shows no hits.
+const GC_ENDPOINT = 'https://tkterugblik.goatcounter.com/count';
+
+function loadCounter() {
+  try {
+    if (document.querySelector('script[data-goatcounter]')) return;
+    window.goatcounter = window.goatcounter || {};
+    window.goatcounter.path = function () { return location.pathname; };
+    const s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://gc.zgo.at/count.js';
+    // count.js finds its endpoint by querying for script[data-goatcounter].
+    s.setAttribute('data-goatcounter', GC_ENDPOINT);
+    document.body.appendChild(s);
+  } catch (_) {
+    // A visit counter is never worth breaking a document for.
+  }
+}
+
 function boot() {
   window.__viewerBooted = true; // tells index.html's watchdog the module loaded
   // The token travels in the FRAGMENT: unlike a query string it is never sent
@@ -154,6 +187,13 @@ function boot() {
   } else {
     $('gate-key').focus();
   }
+  // Whatever happened above, nothing may be left in the address bar before the
+  // counter loads: count.js posts location.search verbatim. Unconditional, not
+  // only for the token branch — ?anything would go the same way.
+  if (location.search || location.hash) {
+    try { history.replaceState(null, '', location.pathname); } catch (_) {}
+  }
+  loadCounter();
 }
 
 // ── analysis rendering ──────────────────────────────────────
