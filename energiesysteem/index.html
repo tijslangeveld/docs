@@ -145,16 +145,27 @@ body {
 @media (hover: hover) { .tb-btn:not([disabled]):hover { color: var(--accent); } }
 /* The two A's differ in size so the pair reads as a size control at a glance. */
 .tb-size { display: flex; align-items: center; gap: 2px; }
-.tb-size .tb-btn:first-child { font-size: .7rem; }
-.tb-size .tb-btn:last-child { font-size: 1.05rem; }
-/* The icon is what is seen; the <select> is a transparent hit target laid over
+.tb-size .tb-btn { font-size: 1rem; min-width: 22px; }
+/* The word is what is seen; the <select> is a transparent hit target laid over
    it at full size, so the native menu still opens on a tap and the control
-   still focuses and reads as a listbox. */
+   still focuses and reads as a listbox. The label is fixed — "Lettertype", not
+   the name of the current face, which is what used to fill the bar. */
+.tb-label {
+  font-size: .8rem; font-weight: 600; line-height: 1;
+  white-space: nowrap; letter-spacing: -.01em;
+}
+.tb-size .tb-label { color: var(--muted); margin-right: 2px; }
 .tb-font {
-  position: relative; display: inline-flex; align-items: center; justify-content: center;
-  min-width: 28px; height: 28px; border-radius: 6px;
+  position: relative; display: inline-flex; align-items: center; gap: 4px;
+  height: 28px; padding: 0 6px; border-radius: 6px;
   color: var(--muted); cursor: pointer;
   transition: color .12s ease, background .12s ease;
+}
+/* A small chevron, so the word reads as something that opens. */
+.tb-font::after {
+  content: ''; width: 5px; height: 5px; flex-shrink: 0; margin-top: -2px;
+  border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
 }
 .tb-font:active { background: color-mix(in srgb, var(--text) 10%, transparent); }
 @media (hover: hover) { .tb-font:hover { color: var(--accent); } }
@@ -620,9 +631,13 @@ mark.pdf-hit { background: var(--mark); color: inherit; border-radius: 2px; padd
 
 <div id="topbar" hidden>
   <div class="topbar-inner">
+    <!-- Two A's at different sizes read as one control only if you already
+         know what it is; at a glance they were just two letters. A word and a
+         pair of signs say it outright. -->
     <div class="tb-size">
-      <button class="tb-btn" id="fs-down" type="button" aria-label="Kleinere tekst">A</button>
-      <button class="tb-btn" id="fs-up" type="button" aria-label="Grotere tekst">A</button>
+      <span class="tb-label" aria-hidden="true">Tekst</span>
+      <button class="tb-btn" id="fs-down" type="button" aria-label="Kleinere tekst">&minus;</button>
+      <button class="tb-btn" id="fs-up" type="button" aria-label="Grotere tekst">+</button>
     </div>
     <!-- The face is chosen from a real <select> — native menus behave far
          better on a phone than anything hand-rolled — but its own text is not
@@ -630,16 +645,16 @@ mark.pdf-hit { background: var(--mark); color: inherit; border-radius: 2px; padd
          the bar. The select lies transparent over the icon and still catches
          every click, so keyboard and screen-reader behaviour are untouched. -->
     <span class="tb-font" title="Lettertype">
-      <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-           stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M3 11.2L6.6 3.2l3.6 8"/><path d="M4.3 8.6h4.6"/><path d="M2.5 14h11"/>
-      </svg>
+      <span class="tb-label" aria-hidden="true">Lettertype</span>
       <select id="font-pick" aria-label="Lettertype">
         <option value="lato">Lato</option>
         <option value="system">Systeem</option>
         <option value="inter">Inter</option>
         <option value="roboto">Roboto</option>
         <option value="open-sans">Open Sans</option>
+        <option value="georgia">Georgia</option>
+        <option value="palatino">Palatino</option>
+        <option value="charter">Charter</option>
       </select>
     </span>
     <button class="tb-btn" id="theme-toggle" type="button" aria-label="Donkere modus"></button>

@@ -434,6 +434,13 @@ const FONT_STACKS = {
   inter: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
   roboto: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif',
   'open-sans': '"Open Sans", -apple-system, BlinkMacSystemFont, sans-serif',
+  // Serif reading faces. System stacks, not bundled files: there is no serif
+  // woff2 in fonts/, and shipping three families would add more weight to every
+  // bundle than a serif option is worth. Same three the newsreader offers, with
+  // the same fallbacks, so a reader who likes one there finds it here.
+  georgia: 'Georgia, "Times New Roman", serif',
+  palatino: '"Palatino Linotype", Palatino, "Book Antiqua", serif',
+  charter: 'Charter, "Bitstream Charter", "Sitka Text", Cambria, serif',
 };
 // Versioned: earlier builds persisted their defaults on first paint, so a
 // returning reader would otherwise be stuck with the old default size and font.
