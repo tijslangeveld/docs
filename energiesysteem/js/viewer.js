@@ -427,13 +427,13 @@ const DEFAULT_FS = 12;
 // on a document once it leaves. Roboto is the neutral default in its place; a
 // reader who chose ro-sans in an older bundle falls through to it below, since
 // applyFont resolves an unknown name to DEFAULT_FONT.
-const DEFAULT_FONT = 'roboto';
+const DEFAULT_FONT = 'lato';
 const FONT_STACKS = {
-  roboto: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif',
+  lato: '"Lato", -apple-system, BlinkMacSystemFont, sans-serif',
   system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   inter: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+  roboto: '"Roboto", -apple-system, BlinkMacSystemFont, sans-serif',
   'open-sans': '"Open Sans", -apple-system, BlinkMacSystemFont, sans-serif',
-  lato: '"Lato", -apple-system, BlinkMacSystemFont, sans-serif',
 };
 // Versioned: earlier builds persisted their defaults on first paint, so a
 // returning reader would otherwise be stuck with the old default size and font.
