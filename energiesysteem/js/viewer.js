@@ -501,7 +501,12 @@ function wireSettings() {
       (!root.hasAttribute('data-theme') && systemDark());
     applyTheme(isDark ? 'light' : 'dark', true);
   });
-  applyTheme(prefs.theme || 'auto', false);
+  // Light unless the reader has chosen otherwise. Not the system preference:
+  // an exported analysis is a published document, and it should look the same
+  // to everyone who opens the link. A reader who wants dark says so once and it
+  // is remembered — see the pre-paint restore in index.html, which sets the
+  // attribute before this file has even loaded.
+  applyTheme(prefs.theme || 'light', false);
 
   bar.hidden = false;
 }
