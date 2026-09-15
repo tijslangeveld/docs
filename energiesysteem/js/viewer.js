@@ -101,8 +101,12 @@ async function ensureManifest() {
 async function openWithoutPassword() {
   try { await ensureManifest(); } catch (_) { return false; }
   if (!MANIFEST || !MANIFEST.openKey) return false;
-  unlock(MANIFEST.openKey);
-  return true;
+  // Awaited, and its answer believed. Reporting success without waiting would
+  // leave the gate hidden when the carried key does not work — a truncated
+  // upload, a manifest from another export — and the error message lands in an
+  // element nobody can see. A blank page is the worst of the possible failures:
+  // it says nothing at all.
+  return await unlock(MANIFEST.openKey);
 }
 
 async function unlock(token) {
@@ -121,6 +125,7 @@ async function unlock(token) {
     render(JSON.parse(new TextDecoder().decode(plain)));
     // Only now — a key that did not open the document is not worth saving.
     saveKeyToBrowser(token);
+    return true;
   } catch (err) {
     KEY = null;
     btn.disabled = false;
@@ -130,6 +135,7 @@ async function unlock(token) {
     msg.textContent = (err && err.name === 'OperationError')
       ? 'Onjuiste sleutel.'
       : 'Kon het document niet openen: ' + (err && err.message ? err.message : err);
+    return false;
   }
 }
 
