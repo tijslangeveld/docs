@@ -83,6 +83,28 @@ function saveKeyToBrowser(token) {
   }
 }
 
+async function ensureManifest() {
+  if (MANIFEST) return MANIFEST;
+  const r = await fetch('./data/manifest.json', { cache: 'no-store' });
+  if (!r.ok) throw new Error('manifest ontbreekt (HTTP ' + r.status + ')');
+  MANIFEST = await r.json();
+  return MANIFEST;
+}
+
+// A bundle exported with --no-password carries its own key, in the manifest.
+//
+// Be clear about what that is and is not. The payload is still AES-GCM, so what
+// sits on the host is ciphertext and a crawler that does not run javascript —
+// which is most of them, and every naive scraper — reads nothing at all. It is
+// NOT a secret: the key is right there for anyone who opens data/manifest.json.
+// Obfuscation against machines, not protection against people.
+async function openWithoutPassword() {
+  try { await ensureManifest(); } catch (_) { return false; }
+  if (!MANIFEST || !MANIFEST.openKey) return false;
+  unlock(MANIFEST.openKey);
+  return true;
+}
+
 async function unlock(token) {
   const msg = $('gate-msg');
   const btn = $('gate-go');
@@ -90,11 +112,7 @@ async function unlock(token) {
   msg.textContent = 'Ontgrendelen…';
   btn.disabled = true;
   try {
-    if (!MANIFEST) {
-      const r = await fetch('./data/manifest.json', { cache: 'no-store' });
-      if (!r.ok) throw new Error('manifest ontbreekt (HTTP ' + r.status + ')');
-      MANIFEST = await r.json();
-    }
+    await ensureManifest();
     setGateUser();
     KEY = await deriveKey(token, MANIFEST.kdf);
     // The analysis doubles as the key check: AES-GCM authenticates, so a wrong
@@ -185,7 +203,15 @@ function boot() {
     try { history.replaceState(null, '', location.pathname); } catch (_) {}
     unlock(token);
   } else {
-    $('gate-key').focus();
+    // Do not flash a key prompt at a reader who will not need one: hide the
+    // gate until the manifest has said whether this bundle carries its own key.
+    const gate = $('gate');
+    gate.hidden = true;
+    openWithoutPassword().then((opened) => {
+      if (opened) return;
+      gate.hidden = false;
+      $('gate-key').focus();
+    });
   }
   // Whatever happened above, nothing may be left in the address bar before the
   // counter loads: count.js posts location.search verbatim. Unconditional, not
