@@ -201,31 +201,41 @@ function boot() {
   // Changing only the fragment is a same-document navigation, so pasting a new
   // token into the address bar would otherwise do nothing.
   window.addEventListener('hashchange', () => {
+    // A document that is already open stays open. Someone following an older
+    // link to a bundle that has since been re-exported would otherwise have a
+    // stale key thrown at the piece they are reading.
+    if (KEY) { try { history.replaceState(null, '', location.pathname); } catch (_) {} return; }
     const t = decodeURIComponent((location.hash || '').replace(/^#/, '')).trim();
     if (t) { try { history.replaceState(null, '', location.pathname); } catch (_) {} unlock(t); }
   });
-  if (token) {
-    // Drop it from the address bar so it does not linger in screenshots.
-    try { history.replaceState(null, '', location.pathname); } catch (_) {}
-    unlock(token);
-  } else {
-    // Do not flash a key prompt at a reader who will not need one: hide the
-    // gate until the manifest has said whether this bundle carries its own key.
-    const gate = $('gate');
-    gate.hidden = true;
-    openWithoutPassword().then((opened) => {
-      if (opened) return;
-      gate.hidden = false;
-      $('gate-key').focus();
-    });
-  }
-  // Whatever happened above, nothing may be left in the address bar before the
-  // counter loads: count.js posts location.search verbatim. Unconditional, not
-  // only for the token branch — ?anything would go the same way.
+
+  // Cleared before anything else: the key must not linger in a screenshot, and
+  // count.js posts location.search verbatim. Unconditional — ?anything would go
+  // the same way.
   if (location.search || location.hash) {
     try { history.replaceState(null, '', location.pathname); } catch (_) {}
   }
   loadCounter();
+
+  // Opened in order of what can actually be right.
+  //
+  // The key the bundle carries comes FIRST, ahead of anything in the URL. It is
+  // this bundle's key by construction, while a key in a link is only as current
+  // as the link: every address shared before a re-export still carries the old
+  // one in its fragment. Honouring that would answer "Onjuiste sleutel" on a
+  // document that needs no key at all — so where the bundle knows its own key,
+  // whatever the reader arrived with is simply ignored.
+  //
+  // The gate stays hidden until this is settled, so nothing flashes a key prompt
+  // at a reader who will not need one.
+  const gate = $('gate');
+  gate.hidden = true;
+  openWithoutPassword().then((opened) => {
+    if (opened) return;
+    gate.hidden = false;
+    if (token) unlock(token);
+    else $('gate-key').focus();
+  });
 }
 
 // ── analysis rendering ──────────────────────────────────────
